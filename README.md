@@ -2,11 +2,11 @@
 
 <p align="center">
 | <a href="https://github.com/casper-hansen/AutoAWQ/issues/32"><b>Roadmap</b></a> | <a href="https://github.com/casper-hansen/AutoAWQ/tree/main/examples"><b>Examples</b></a> | <a href="https://github.com/casper-hansen/AutoAWQ/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22"><b>Issues: Help Wanted</b></a> |
-
 </p>
-<p align="center">
+
+<p align="center" style="margin-bottom: 0px;">
     <a href="https://huggingface.co/models?search=awq">
-        <img alt="Huggingface - Models" src="https://img.shields.io/badge/🤗_600+_models_available-8A2BE2">
+        <img alt="Huggingface - Models" src="https://img.shields.io/badge/🤗_1000+_models_available-8A2BE2">
     </a>
     <a href="https://github.com/casper-hansen/AutoAWQ/releases">
         <img alt="GitHub - Releases" src="https://img.shields.io/github/release/casper-hansen/AutoAWQ.svg">
@@ -16,10 +16,23 @@
     </a>
 </p>
 
-AutoAWQ is an easy-to-use package for 4-bit quantized models. AutoAWQ speeds up models by 2x while reducing memory requirements by 3x compared to FP16. AutoAWQ implements the Activation-aware Weight Quantization (AWQ) algorithm for quantizing LLMs.  AutoAWQ was created and improved upon from the [original work](https://github.com/mit-han-lab/llm-awq) from MIT.
+<div align="center" style="color: white;">
+    <p>Supported by</p>
+    <a href="https://runpod.io/?utm_source=referral&utm_medium=autoAWQ">
+    <img src="https://github.com/aadil-runpod/rp-logo/assets/164108768/a8fc546d-cbab-44c4-9a5a-dfb6c400ad24" alt="RunPod Logo" width="100" border="0">  </a>
+</div>
+
+AutoAWQ is an easy-to-use package for 4-bit quantized models. AutoAWQ speeds up models by 3x and reduces memory requirements by 3x compared to FP16. AutoAWQ implements the Activation-aware Weight Quantization (AWQ) algorithm for quantizing LLMs.  AutoAWQ was created and improved upon from the [original work](https://github.com/mit-han-lab/llm-awq) from MIT.
 
 *Latest News* 🔥
-- [2023/11] AutoAWQ has been merged into 🤗 transformers. Now includes CUDA 12.1 wheels.
+- [2024/06] CPU inference support (x86) - thanks Intel. Cohere and Phi3 support.
+- [2024/04] StableLM and StarCoder2 support.
+- [2024/03] Gemma support.
+- [2024/02] PEFT-compatible training in FP16.
+- [2024/02] AMD ROCm support through ExLlamaV2 kernels.
+- [2024/01] Export to GGUF, ExLlamaV2 kernels, 60% faster context processing.
+- [2023/12] Mixtral, LLaVa, QWen, Baichuan model support.
+- [2023/11] AutoAWQ inference has been integrated into 🤗 transformers. Now includes CUDA 12.1 wheels.
 - [2023/10] Mistral (Fused Modules), Bigcode, Turing support, Memory Bug Fix (Saves 2GB VRAM)
 - [2023/09] 1.6x-2.5x speed boost on fused models (now including MPT and Falcon).
 - [2023/09] Multi-GPU support, bug fixes, and better benchmark scripts available
@@ -27,48 +40,37 @@ AutoAWQ is an easy-to-use package for 4-bit quantized models. AutoAWQ speeds up 
 
 ## Install
 
-Requirements: 
-- Compute Capability 7.5 (sm75). Turing and later architectures are supported.
-- CUDA Toolkit 11.8 and later.
+### Prerequisites
 
----
+- NVIDIA:
+  - Your NVIDIA GPU(s) must be of Compute Capability 7.5. Turing and later architectures are supported.
+  - Your CUDA version must be CUDA 11.8 or later.
+- AMD:
+  -  Your ROCm version must be ROCm 5.6 or later.
 
-Install:
+### Install from PyPi
 
-- Install from PyPi distributed wheels (torch 2.1.0 + CUDA 12.1.1)
+To install the newest AutoAWQ from PyPi, you need CUDA 12.1 installed.
 
 ```
 pip install autoawq
 ```
 
-- Install from GitHub a release (torch 2.0.1 + CUDA 11.8.0)
+### Build from source
 
-Remember to grab the right link for the [latest release](https://github.com/casper-hansen/AutoAWQ/releases) that matches your environment.
-
-For example, this wheel is torch 2.0.1 with CUDA 11.8.0 and Python 3.10 for Linux:
+For CUDA 11.8, ROCm 5.6, and ROCm 5.7, you can install wheels from the [release page](https://github.com/casper-hansen/AutoAWQ/releases/latest):
 
 ```
-pip install https://github.com/casper-hansen/AutoAWQ/releases/download/v0.1.6/autoawq-0.1.6+cu118-cp310-cp310-linux_x86_64.whl
+pip install autoawq@https://github.com/casper-hansen/AutoAWQ/releases/download/v0.2.0/autoawq-0.2.0+cu118-cp310-cp310-linux_x86_64.whl
 ```
 
-### Using conda
-
-CUDA dependencies can be hard to manage sometimes. It is recommended to use conda with AutoAWQ:
+Or from the main branch directly:
 
 ```
-conda create --name autoawq python=3.10 -y
-conda activate autoawq
-conda install pytorch=2.0.1 torchvision torchaudio cudatoolkit=11.8 -c pytorch -c nvidia
-pip install autoawq
+pip install autoawq@https://github.com/casper-hansen/AutoAWQ.git
 ```
 
-### Build source
-
-<details>
-
-<summary>Build AutoAWQ from scratch</summary>
-
-Build time can take 10 minutes. Download your model while you install AutoAWQ.
+Or by cloning the repository and installing from source:
 
 ```
 git clone https://github.com/casper-hansen/AutoAWQ
@@ -76,25 +78,9 @@ cd AutoAWQ
 pip install -e .
 ```
 
-</details>
+All three methods will install the latest and correct kernels for your system from [AutoAWQ_Kernels](https://github.com/casper-hansen/AutoAWQ_kernels/releases). 
 
-## Supported models
-
-The detailed support list:
-
-| Models   | Sizes                       |
-| ---------| ----------------------------|
-| LLaMA-2  | 7B/13B/70B                  |
-| LLaMA    | 7B/13B/30B/65B              |
-| Mistral  | 7B                          |
-| Vicuna   | 7B/13B                      |
-| MPT      | 7B/30B                      |
-| Falcon   | 7B/40B                      |
-| OPT      | 125m/1.3B/2.7B/6.7B/13B/30B |
-| Bloom    | 560m/3B/7B/                 |
-| GPTJ     | 6.7B                        |
-| Aquila   | 7B                          |
-| Aquila2  | 7B/34B                      |
+If your system is not supported (i.e. not on the release page), you can build the kernels yourself by following the instructions in [AutoAWQ_Kernels](https://github.com/casper-hansen/AutoAWQ_kernels/releases) and then install AutoAWQ from source.
 
 ## Usage
 
@@ -121,7 +107,7 @@ Fused modules are a large part of the speedup you get from AutoAWQ. The idea is 
 - Fused modules are activated when you use `fuse_layers=True`.
 - A custom cache is implemented. It preallocates based on batch size and sequence length.
     - You cannot change the sequence length after you have created your model.
-    - Reference: `AutoAWQForCausalLM.from_quantized(max_new_tokens=seq_len, batch_size=batch_size)`
+    - Reference: `AutoAWQForCausalLM.from_quantized(max_seq_len=seq_len, batch_size=batch_size)`
 - The main accelerator in the fused modules comes from FasterTransformer, which is only compatible with Linux.
 - The `past_key_values` from `model.generate()` are only dummy values, so they cannot be used after generation.
 
@@ -165,22 +151,27 @@ tokenizer.save_pretrained(quant_path)
 from awq import AutoAWQForCausalLM
 from transformers import AutoTokenizer, TextStreamer
 
-quant_path = "casperhansen/vicuna-7b-v1.5-awq"
+quant_path = "TheBloke/zephyr-7B-beta-AWQ"
 
 # Load model
 model = AutoAWQForCausalLM.from_quantized(quant_path, fuse_layers=True)
 tokenizer = AutoTokenizer.from_pretrained(quant_path, trust_remote_code=True)
-streamer = TextStreamer(tokenizer, skip_special_tokens=True)
+streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
 
 # Convert prompt to tokens
 prompt_template = """\
-A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions.
+<|system|>
+</s>
+<|user|>
+{prompt}</s>
+<|assistant|>"""
 
-USER: {prompt}
-ASSISTANT:"""
+prompt = "You're standing on the surface of the Earth. "\
+        "You walk one mile south, one mile west and one mile north. "\
+        "You end up exactly where you started. Where are you?"
 
 tokens = tokenizer(
-    prompt_template.format(prompt="How are you today?"), 
+    prompt_template.format(prompt=prompt), 
     return_tensors='pt'
 ).input_ids.cuda()
 
@@ -188,21 +179,9 @@ tokens = tokenizer(
 generation_output = model.generate(
     tokens, 
     streamer=streamer,
-    max_new_tokens=512
+    max_seq_len=512
 )
 ```
-
-</details>
-
-<details>
-
-<summary>AutoAWQForCausalLM.from_quantized</summary>
-
-- `quant_path`: Path to folder containing model files.
-- `quant_filename`: The filename to model weights or `index.json` file.
-- `max_new_tokens`: The max sequence length, used to allocate kv-cache for fused models.
-- `fuse_layers`: Whether or not to use fused layers.
-- `batch_size`: The batch size to initialize the AWQ model with.
 
 </details>
 
@@ -215,40 +194,78 @@ These benchmarks showcase the speed and memory usage of processing context (pref
 - Command: `python examples/benchmark.py --model_path <hf_model> --batch_size 1`
 - 🟢 for GEMV, 🔵 for GEMM, 🔴 for avoid using
 
-| Model Name |  Size    | Version          | Batch Size | Prefill Length | Decode Length | Prefill tokens/s | Decode tokens/s | Memory (VRAM)    |
-|------------|----------|------------------|------------|----------------|---------------|------------------|-----------------|------------------|
-| Vicuna     |   7B     | 🟢GEMV           | 1          | 64             | 64            | 639.65           | 198.848         | 4.50 GB (19.05%) |
-| Vicuna     |   7B     | 🟢GEMV           | 1          | 2048           | 2048          | 1123.63          | 133.191         | 6.15 GB (26.02%) |
-| ...        |   ...    | ...              | ...        | ...            | ...           | ...              | ...             | ...              |
-| Mistral    |   7B     | 🔵GEMM           | 1          | 64             | 64            | 1093.35          | 156.317         | 4.35 GB (18.41%) |
-| Mistral    |   7B     | 🔵GEMM           | 1          | 2048           | 2048          | 3897.02          | 114.355         | 5.55 GB (23.48%) |
-| Mistral    |   7B     | 🔵GEMM           | 8          | 64             | 64            | 4199.18          | 1185.25         | 4.35 GB (18.41%) |
-| Mistral    |   7B     | 🔵GEMM           | 8          | 2048           | 2048          | 3661.46          | 829.754         | 16.82 GB (71.12%)|
-| ...        |   ...    | ...              | ...        | ...            | ...           | ...              | ...             | ...              |
-| Mistral    |   7B     | 🟢GEMV           | 1          | 64             | 64            | 531.99           | 188.29          | 4.28 GB (18.08%) |
-| Mistral    |   7B     | 🟢GEMV           | 1          | 2048           | 2048          | 903.83           | 130.66          | 5.55 GB (23.48%) |
-| Mistral    |   7B     | 🔴GEMV           | 8          | 64             | 64            | 897.87           | 486.46          | 4.33 GB (18.31%) |
-| Mistral    |   7B     | 🔴GEMV           | 8          | 2048           | 2048          | 884.22           | 411.893         | 16.82 GB (71.12%)|
-| ...        |   ...    | ...              | ...        | ...            | ...           | ...              | ...             | ...              |
-| TinyLlama  |   1B     | 🟢GEMV           | 1          | 64             | 64            | 1088.63          | 548.993         | 0.86 GB (3.62%)  |
-| TinyLlama  |   1B     | 🟢GEMV           | 1          | 2048           | 2048          | 5178.98          | 431.468         | 2.10 GB (8.89%)  |
-| ...        |   ...    | ...              | ...        | ...            | ...           | ...              | ...             | ...              |
-| Llama 2    |   13B    | 🔵GEMM           | 1          | 64             | 64            | 820.34           | 96.74           | 8.47 GB (35.83%) |
-| Llama 2    |   13B    | 🔵GEMM           | 1          | 2048           | 2048          | 2279.41          | 73.8213         | 10.28 GB (43.46%)|
-| Llama 2    |   13B    | 🔵GEMM           | 3          | 64             | 64            | 1593.88          | 286.249         | 8.57 GB (36.24%) |
-| Llama 2    |   13B    | 🔵GEMM           | 3          | 2048           | 2048          | 2226.7           | 189.573         | 16.90 GB (71.47%)|
-| ...        |   ...    | ...              | ...        | ...            | ...           | ...              | ...             | ...              |
-| MPT        |   7B     | 🔵GEMM           | 1          | 64             | 64            | 1079.06          | 161.344         | 3.67 GB (15.51%) |
-| MPT        |   7B     | 🔵GEMM           | 1          | 2048           | 2048          | 4069.78          | 114.982         | 5.87 GB (24.82%) |
-| ...        |   ...    | ...              | ...        | ...            | ...           | ...              | ...             | ...              |
-| Falcon     |   7B     | 🔵GEMM           | 1          | 64             | 64            | 1139.93          | 133.585         | 4.47 GB (18.92%) |
-| Falcon     |   7B     | 🔵GEMM           | 1          | 2048           | 2048          | 2850.97          | 115.73          | 6.83 GB (28.88%) |
-| ...        |   ...    | ...              | ...        | ...            | ...           | ...              | ...             | ...              |
-| CodeLlama  |   34B    | 🔵GEMM           | 1          | 64             | 64            | 681.74           | 41.01           | 19.05 GB (80.57%)|
-| CodeLlama  |   34B    | 🔵GEMM           | 1          | 2048           | 2048          | 1072.36          | 35.8316         | 20.26 GB (85.68%)|
-| ...        |  ...     | ...              | ...        | ...            | ...           | ...              | ...             | ...              |
-| DeepSeek   |   33B    | 🔵GEMM           | 1          | 64             | 64            | 1160.18          | 40.29           | 18.92 GB (80.00%)|
-| DeepSeek   |   33B    | 🔵GEMM           | 1          | 2048           | 2048          | 1012.1           | 34.0093         | 19.87 GB (84.02%)|
+| Model Name | Size | Version | Batch Size | Prefill Length | Decode Length | Prefill tokens/s | Decode tokens/s | Memory (VRAM)     |
+| ---------- | ---- | ------- | ---------- | -------------- | ------------- | ---------------- | --------------- | ----------------- |
+| Vicuna     | 7B   | 🟢GEMV   | 1          | 64             | 64            | 639.65           | 198.848         | 4.50 GB (19.05%)  |
+| Vicuna     | 7B   | 🟢GEMV   | 1          | 2048           | 2048          | 1123.63          | 133.191         | 6.15 GB (26.02%)  |
+| ...        | ...  | ...     | ...        | ...            | ...           | ...              | ...             | ...               |
+| Mistral    | 7B   | 🔵GEMM   | 1          | 64             | 64            | 1093.35          | 156.317         | 4.35 GB (18.41%)  |
+| Mistral    | 7B   | 🔵GEMM   | 1          | 2048           | 2048          | 3897.02          | 114.355         | 5.55 GB (23.48%)  |
+| Mistral    | 7B   | 🔵GEMM   | 8          | 64             | 64            | 4199.18          | 1185.25         | 4.35 GB (18.41%)  |
+| Mistral    | 7B   | 🔵GEMM   | 8          | 2048           | 2048          | 3661.46          | 829.754         | 16.82 GB (71.12%) |
+| ...        | ...  | ...     | ...        | ...            | ...           | ...              | ...             | ...               |
+| Mistral    | 7B   | 🟢GEMV   | 1          | 64             | 64            | 531.99           | 188.29          | 4.28 GB (18.08%)  |
+| Mistral    | 7B   | 🟢GEMV   | 1          | 2048           | 2048          | 903.83           | 130.66          | 5.55 GB (23.48%)  |
+| Mistral    | 7B   | 🔴GEMV   | 8          | 64             | 64            | 897.87           | 486.46          | 4.33 GB (18.31%)  |
+| Mistral    | 7B   | 🔴GEMV   | 8          | 2048           | 2048          | 884.22           | 411.893         | 16.82 GB (71.12%) |
+| ...        | ...  | ...     | ...        | ...            | ...           | ...              | ...             | ...               |
+| TinyLlama  | 1B   | 🟢GEMV   | 1          | 64             | 64            | 1088.63          | 548.993         | 0.86 GB (3.62%)   |
+| TinyLlama  | 1B   | 🟢GEMV   | 1          | 2048           | 2048          | 5178.98          | 431.468         | 2.10 GB (8.89%)   |
+| ...        | ...  | ...     | ...        | ...            | ...           | ...              | ...             | ...               |
+| Llama 2    | 13B  | 🔵GEMM   | 1          | 64             | 64            | 820.34           | 96.74           | 8.47 GB (35.83%)  |
+| Llama 2    | 13B  | 🔵GEMM   | 1          | 2048           | 2048          | 2279.41          | 73.8213         | 10.28 GB (43.46%) |
+| Llama 2    | 13B  | 🔵GEMM   | 3          | 64             | 64            | 1593.88          | 286.249         | 8.57 GB (36.24%)  |
+| Llama 2    | 13B  | 🔵GEMM   | 3          | 2048           | 2048          | 2226.7           | 189.573         | 16.90 GB (71.47%) |
+| ...        | ...  | ...     | ...        | ...            | ...           | ...              | ...             | ...               |
+| MPT        | 7B   | 🔵GEMM   | 1          | 64             | 64            | 1079.06          | 161.344         | 3.67 GB (15.51%)  |
+| MPT        | 7B   | 🔵GEMM   | 1          | 2048           | 2048          | 4069.78          | 114.982         | 5.87 GB (24.82%)  |
+| ...        | ...  | ...     | ...        | ...            | ...           | ...              | ...             | ...               |
+| Falcon     | 7B   | 🔵GEMM   | 1          | 64             | 64            | 1139.93          | 133.585         | 4.47 GB (18.92%)  |
+| Falcon     | 7B   | 🔵GEMM   | 1          | 2048           | 2048          | 2850.97          | 115.73          | 6.83 GB (28.88%)  |
+| ...        | ...  | ...     | ...        | ...            | ...           | ...              | ...             | ...               |
+| CodeLlama  | 34B  | 🔵GEMM   | 1          | 64             | 64            | 681.74           | 41.01           | 19.05 GB (80.57%) |
+| CodeLlama  | 34B  | 🔵GEMM   | 1          | 2048           | 2048          | 1072.36          | 35.8316         | 20.26 GB (85.68%) |
+| ...        | ...  | ...     | ...        | ...            | ...           | ...              | ...             | ...               |
+| DeepSeek   | 33B  | 🔵GEMM   | 1          | 64             | 64            | 1160.18          | 40.29           | 18.92 GB (80.00%) |
+| DeepSeek   | 33B  | 🔵GEMM   | 1          | 2048           | 2048          | 1012.1           | 34.0093         | 19.87 GB (84.02%) |
+
+### Multi-GPU
+
+GPU: 2x NVIDIA GeForce RTX 4090
+
+| Model | Size    | Version       |   Batch Size |   Prefill Length |   Decode Length |   Prefill tokens/s |   Decode tokens/s | Memory (VRAM)     |
+|--------:|------:|--------------:|-------------:|-----------------:|----------------:|-------------------:|------------------:|:------------------|
+| Mixtral | 46.7B | 🔵GEMM        |            1 |               32 |              32 |            149.742 |           93.406  | 25.28 GB (53.44%) |
+| Mixtral | 46.7B | 🔵GEMM        |            1 |               64 |              64 |           1489.64  |           93.184  | 25.32 GB (53.53%) |
+| Mixtral | 46.7B | 🔵GEMM        |            1 |              128 |             128 |           2082.95  |           92.9444 | 25.33 GB (53.55%) |
+| Mixtral | 46.7B | 🔵GEMM        |            1 |              256 |             256 |           2428.59  |           91.5187 | 25.35 GB (53.59%) |
+| Mixtral | 46.7B | 🔵GEMM        |            1 |              512 |             512 |           2633.11  |           89.1457 | 25.39 GB (53.67%) |
+| Mixtral | 46.7B | 🔵GEMM        |            1 |             1024 |            1024 |           2598.95  |           84.6753 | 25.75 GB (54.44%) |
+| Mixtral | 46.7B | 🔵GEMM        |            1 |             2048 |            2048 |           2446.15  |           77.0516 | 27.98 GB (59.15%) |
+| Mixtral | 46.7B | 🔵GEMM        |            1 |             4096 |            4096 |           1985.78  |           77.5689 | 34.65 GB (73.26%) |
+
+### CPU
+
+- CPU: INTEL(R) XEON(R) PLATINUM 8592+ with 8-channel 4800MT/s memory.
+- Command: `python examples/benchmark.py --model_path <hf_model> --batch_size 1`
+
+|   Model | Size | Batch Size | Prefill Length | Decode Length | Prefill tokens/s | Decode tokens/s | Memory (RAM) |
+|--------:|------:|-----------:|-------------:|-----------------:|----------------:|---------------:|:------------------|
+| Mixtral |   7B | 1          | 64             | 64            | 389.24           | 16.01           | 5.59 GB (0.02%) |
+| Mixtral |   7B | 1          | 2048             | 2048            | 1412           | 17.76         | 6.29 GB (0.03%) |
+| Vicuna  |   7B | 1          | 64             | 64            | 346           | 18.13         | 8.18 GB (0.03%) |
+| Vicuna  |   7B | 1          | 2048             | 2048            | 1023.4           | 18.18         | 8.80 GB (0.04%) |
+| LLaMA2  |   13B | 1          | 64             | 64            | 160.24           | 9.87         | 14.65 GB (0.06%) |
+| LLaMA2  |   13B | 1          | 2048             | 2048            | 592.35           | 9.93         | 16.87 GB (0.07%) |
+| Mosaicml  | 7B | 1          | 64             | 64            | 433.17           | 18.79         | 4.60 GB (0.02%) |
+| Mosaicml  | 7B | 1          | 2048             | 2048            | 404.25           | 19.91         | 4.75 GB (0.02%) |
+| Falcon  | 7B | 1          | 64             | 64            | 303.16           | 14.41         | 5.18 GB (0.02%) |
+| Falcon  | 7B | 1          | 2048             | 2048            | 634.57           | 15.55         | 5.80 GB (0.02%) |
+| CodeLlama  | 34B | 1          | 64             | 64            | 153.73           | 4.23         | 29.00 GB (0.12%) |
+| CodeLlama  | 34B | 1          | 2048             | 2048            | 274.25           | 4.38         | 35.21 GB (0.15%) |
+| Deepseek-coder  | 33B | 1          | 64             | 64            | 83.08           | 4.07         | 22.16 GB (0.09%) |
+| Deepseek-coder  | 33B | 1          | 2048             | 2048            | 296.04           | 4.33         | 37.05 GB |
+
 
 ## Reference
 

@@ -3,7 +3,7 @@ from .base import BaseAWQForCausalLM
 
 class QwenAWQForCausalLM(BaseAWQForCausalLM):
     layer_type = "QWenBlock"
-    max_new_tokens_key = "seq_length"
+    max_seq_len_key = "seq_length"
 
     @staticmethod
     def get_model_layers(model):
@@ -26,7 +26,7 @@ class QwenAWQForCausalLM(BaseAWQForCausalLM):
         layers.append(
             dict(
                 prev_op=module.ln_1,
-                layers=[module.attn.c_attn, module.attn.c_proj],
+                layers=[module.attn.c_attn],
                 inp=input_feat["attn.c_attn"],
                 module2inspect=module.attn,
                 kwargs=module_kwargs,
