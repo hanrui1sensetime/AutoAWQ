@@ -11,7 +11,7 @@ try:
     import awq_ft_ext
 
     FT_INSTALLED = True
-except:
+except Exception:
     FT_INSTALLED = False
 
 HF_NEW_CACHE_FORMAT = False
@@ -35,7 +35,8 @@ class RoPE(nn.Module):
 
     @staticmethod
     def precompute_freqs_cis(dim: int, end: int, theta=10000.0):
-        freqs = 1.0 / (theta ** (torch.arange(0, dim, 2)[: (dim // 2)].float() / dim))
+        freqs = 1.0 / (theta
+                       **(torch.arange(0, dim, 2)[:(dim // 2)].float() / dim))
         t = torch.arange(end)
         freqs = torch.outer(t, freqs).float()
         freqs_cis = torch.polar(torch.ones_like(freqs), freqs)
@@ -46,17 +47,18 @@ class RoPE(nn.Module):
         ndim = x.ndim
         assert 0 <= 1 < ndim
         assert freqs_cis.shape == (x.shape[1], x.shape[-1])
-        shape = [d if i == 1 or i == ndim - 1 else 1 for i, d in enumerate(x.shape)]
+        shape = [
+            d if i == 1 or i == ndim - 1 else 1 for i, d in enumerate(x.shape)
+        ]
         return freqs_cis.view(*shape)
 
-    def forward(self, xq: torch.Tensor, xk: torch.Tensor, start_pos: int, seqlen: int):
-        xq_ = torch.view_as_complex(
-            xq.float().reshape(*xq.shape[:-1], 2, -1).transpose(-2, -1).contiguous()
-        )
-        xk_ = torch.view_as_complex(
-            xk.float().reshape(*xk.shape[:-1], 2, -1).transpose(-2, -1).contiguous()
-        )
-        freqs_cis = self.freqs_cis[start_pos : start_pos + seqlen]
+    def forward(self, xq: torch.Tensor, xk: torch.Tensor, start_pos: int,
+                seqlen: int):
+        xq_ = torch.view_as_complex(xq.float().reshape(
+            *xq.shape[:-1], 2, -1).transpose(-2, -1).contiguous())
+        xk_ = torch.view_as_complex(xk.float().reshape(
+            *xk.shape[:-1], 2, -1).transpose(-2, -1).contiguous())
+        freqs_cis = self.freqs_cis[start_pos:start_pos + seqlen]
         freqs_cis = self.reshape_for_broadcast(freqs_cis, xq_).to(xq_.device)
 
         xq_out = torch.view_as_real(xq_ * freqs_cis).transpose(-2, -1).flatten(3)
@@ -66,6 +68,7 @@ class RoPE(nn.Module):
 
 
 class ALiBi(nn.Module):
+
     def __init__(self, n_heads, max_seq_len, device, alibi_bias_max=8):
         super(ALiBi, self).__init__()
 
@@ -78,7 +81,7 @@ class ALiBi(nn.Module):
 
     @staticmethod
     def gen_slopes(n_heads, alibi_bias_max=8):
-        _n_heads = 2 ** math.ceil(math.log2(n_heads))
+        _n_heads = 2**math.ceil(math.log2(n_heads))
         m = torch.arange(1, _n_heads + 1, dtype=torch.float32)
         m = m.mul(alibi_bias_max / _n_heads)
         slopes = 1.0 / torch.pow(2, m)
@@ -249,7 +252,8 @@ class QuantAttentionFused(nn.Module):
 
             # Only necessary to retrieve from cache when we are not processing context
             if seqlen == 1:
-                xv, xk = self.cache.get_kv(bsz, self.start_pos, seqlen, self.head_dim)
+                xv, xk = self.cache.get_kv(bsz, self.start_pos, seqlen,
+                                           self.head_dim)
 
             keys = xk
             values = xv
@@ -263,10 +267,23 @@ class QuantAttentionFused(nn.Module):
             xq = xq.transpose(1, 2)
             keys = keys.transpose(1, 2)
             values = values.transpose(1, 2)
-            scores = torch.matmul(xq, keys.transpose(2, 3)) / math.sqrt(self.head_dim)
+            # Migrate flash attention for LLaMa like model to avoid OOM.
+            if FLASH_INSTALLED and not self.use_alibi:
+                if self.start_pos == 0:
+                    is_causal = True  # past_key_value is None
+                else:
+                    is_causal = False  # have past_key_value
 
-            if self.use_alibi:
-                scores = self.alibi.forward(scores, seqlen)
+                output = flash_attn_func(xq.transpose(1, 2),
+                                         keys.transpose(1, 2),
+                                         values.transpose(1, 2),
+                                         causal=is_causal,
+                                         window_size=(self.max_seq_len,
+                                                      self.max_seq_len))
+                attention_weight = output.view(bsz, seqlen, -1)
+            else:
+                scores = torch.matmul(xq, keys.transpose(2, 3)) / math.sqrt(
+                    self.head_dim)
 
             # When seqlen is 1, there is nothing else to attend to
             if attention_mask is not None and seqlen > 1:
@@ -282,9 +299,9 @@ class QuantAttentionFused(nn.Module):
             output = torch.matmul(scores, values)  # (bs, n_local_heads, slen, head_dim)
             attention_weight = output.transpose(1, 2).contiguous().view(bsz, seqlen, -1)
         else:
-            xq = xq.view((bsz,) + self.attention_shapes["single_xq_view"])
-            xk = xk.view((bsz,) + self.attention_shapes["single_xk_view"])
-            xv = xv.view((bsz,) + self.attention_shapes["single_xv_view"])
+            xq = xq.view((bsz, ) + self.attention_shapes["single_xq_view"])
+            xk = xk.view((bsz, ) + self.attention_shapes["single_xk_view"])
+            xv = xv.view((bsz, ) + self.attention_shapes["single_xv_view"])
 
             alibi_slopes = self.alibi.slopes if self.alibi is not None else None
             attention_weight = awq_ft_ext.single_query_attention(

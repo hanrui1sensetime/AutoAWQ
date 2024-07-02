@@ -49,7 +49,15 @@ class AwqQuantizer:
         self.group_size = group_size
         self.zero_point = zero_point
         self.version = version
-        self.calib_data = calib_data
+        if isinstance(calib_data, tuple):
+            self.calib_data = calib_data[0]
+            if self.calib_data == "custom":
+                self.custom_calib_file = list(calib_data[1:])
+            else:
+                self.custom_calib_file = None
+        else:
+            self.calib_data = calib_data
+            self.custom_calib_file = None
         self.split = split
         self.text_column = text_column
         self.duo_scaling = duo_scaling
@@ -58,7 +66,7 @@ class AwqQuantizer:
         self.modules_to_not_convert = (
             modules_to_not_convert if modules_to_not_convert is not None else []
         )
-        self.modules, self.module_kwargs, self.inps = self.init_quant()
+        self.modules, self.module_kwargs, self.inps = self.init_quant(custom_calib_file=self.custom_calib_file)
 
     def pseudo_quantize_tensor(self, w: torch.Tensor):
         org_w_shape = w.shape
@@ -266,7 +274,10 @@ class AwqQuantizer:
         # [STEP 2]: Compute per-channel mean of the input activation
         x_mean = inp.abs().view(-1, inp.shape[-1]).mean(0)
 
-        # [STEP 3]: Compute output of module
+        # [STEP 3]: Compute output of module by block
+        inp = inp.cpu()
+        fp16_output_list = []
+        dev = next(module2inspect.parameters()).device
         with torch.no_grad():
             module_kwargs = self._sanitize_kwargs(kwargs, module2inspect)
 
@@ -335,8 +346,30 @@ class AwqQuantizer:
                     self.pseudo_quantize_tensor(fc.weight.data)[0] / scales_view
                 )
 
-            # W * X
-            int_w_output = module2inspect(x, **kwargs)
+            # W * X by block
+            output = []
+            if 'attention_mask' in kwargs:
+                kwargs['attention_mask'] = kwargs['attention_mask'].cpu()
+            for i in range(0, x.shape[0], self.batch_block):
+                if 'attention_mask' in kwargs:
+                    int_w_output_batch = module2inspect(
+                        x[i:i + self.batch_block].to(device),
+                        attention_mask=kwargs['attention_mask']
+                        [i:i + self.batch_block].to(device),
+                        position_ids=kwargs['position_ids'],
+                        past_key_value=kwargs['past_key_value'],
+                        output_attentions=kwargs['output_attentions'],
+                        padding_mask=kwargs['padding_mask'])
+                else:
+                    int_w_output_batch = module2inspect(
+                        x[i:i + self.batch_block].to(device))
+                if isinstance(int_w_output_batch, tuple):
+                    output.append(int_w_output_batch[0].cpu())
+                else:
+                    output.append(int_w_output_batch.cpu())
+                del int_w_output_batch
+
+            int_w_output = torch.cat(output, dim=0)
             if isinstance(int_w_output, tuple):
                 int_w_output = int_w_output[0]
 
@@ -345,6 +378,10 @@ class AwqQuantizer:
                 (fp16_output - int_w_output).float().pow(2).mean().item()
             )  # NOTE: float prevents overflow
 
+            # compute mean squared error (L2 norm)
+            loss = (fp16_output - int_w_output).float().pow(
+                2).mean().item()  # NOTE: float prevents overflow
+            del int_w_output
             history.append(loss)
             if loss < best_error:
                 best_error = loss
@@ -406,7 +443,8 @@ class AwqQuantizer:
         for i_b in range(org_w_shape[0] // oc_batch_size):
             w = w_all[i_b * oc_batch_size : (i_b + 1) * oc_batch_size]
 
-            org_max_val = w.abs().amax(dim=-1, keepdim=True)  # co, 1, n_group, 1
+            org_max_val = w.abs().amax(dim=-1,
+                                       keepdim=True)  # co, 1, n_group, 1
 
             best_max_val = org_max_val.clone()
             min_errs = torch.ones_like(org_max_val) * 1e9
@@ -421,7 +459,8 @@ class AwqQuantizer:
                 cur_out = (input_feat * q_w).sum(dim=-1)
 
                 # co, 1, n_group, 1
-                err = (cur_out - org_out).pow(2).mean(dim=1).view(min_errs.shape)
+                err = (cur_out - org_out).pow(2).mean(dim=1).view(
+                    min_errs.shape)
                 del cur_w
                 del cur_out
                 cur_best_idx = err < min_errs
@@ -436,7 +475,7 @@ class AwqQuantizer:
 
         return best_max_val.squeeze(1)
 
-    def init_quant(self, n_samples=128, seqlen=512):
+    def init_quant(self, n_samples=128, seqlen=512, custom_calib_file=None):
         modules = self.awq_model.get_model_layers(self.model)
         samples = get_calib_dataset(
             data=self.calib_data,
@@ -445,9 +484,10 @@ class AwqQuantizer:
             block_size=seqlen,
             split=self.split,
             text_column=self.text_column,
+            custom_calib_file=custom_calib_file
         )
         samples = torch.cat(samples, dim=0)
-
+        print(f'samples.shape: {samples.shape}')
         inps = []
         layer_kwargs = {}
 
@@ -459,6 +499,7 @@ class AwqQuantizer:
         # with_kwargs is only supported in PyTorch 2.0
         # use this Catcher hack for now
         class Catcher(nn.Module):
+
             def __init__(self, module):
                 super().__init__()
                 self.module = module
@@ -472,7 +513,13 @@ class AwqQuantizer:
                     first_key = list(kwargs.keys())[0]
                     hidden_states = kwargs.pop(first_key)
 
-                inps.append(hidden_states)
+                inps.append(hidden_states.to('cpu'))
+                if 'attention_mask' in layer_kwargs.keys():
+                    kwargs['attention_mask'] = torch.cat(
+                        (layer_kwargs["attention_mask"].to('cpu'),
+                         kwargs['attention_mask'].to('cpu')),
+                        dim=0)
+                kwargs['attention_mask'].to('cpu')
                 layer_kwargs.update(kwargs)
                 raise ValueError  # early exit to break later inference
 
@@ -503,6 +550,8 @@ class AwqQuantizer:
                 best_device
             )
 
+        clear_memory()
+        # keep them on cpu for awq big calib data
         return modules, layer_kwargs, inps
 
     def _get_input_feat(self, layer, named_linears):

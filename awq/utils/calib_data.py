@@ -11,10 +11,22 @@ def get_calib_dataset(
     block_size=512,
     split="train",
     text_column="text",
+    custom_calib_file=None
 ):
     if isinstance(data, str):
         if data == "pileval":
-            dataset = load_dataset("mit-han-lab/pile-val-backup", split="validation")
+            dataset = load_dataset("mit-han-lab/pile-val-backup",
+                                   split="validation")
+        elif data == "custom":
+            assert custom_calib_file is not None
+            dataset = load_dataset("json",
+                                   data_files=custom_calib_file,
+                                   split="train")
+            if text_column != "input_ids":
+                print(
+                    f'warning: text_column for custom medical dataset maybe wrong, we fix it as input_ids automatically'
+                )
+            text_column = "input_ids"
         else:
             dataset = load_dataset(data, split=split)
 

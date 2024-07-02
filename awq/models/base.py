@@ -85,6 +85,7 @@ TRANSFORMERS_AUTO_MAPPING_DICT = {
 }
 
 
+
 class BaseAWQForCausalLM(nn.Module):
     def __init__(
         self,

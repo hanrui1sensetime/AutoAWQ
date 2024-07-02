@@ -33,7 +33,8 @@ class LlamaAWQForCausalLM(BaseAWQForCausalLM):
         model.model.embed_tokens = model.model.embed_tokens.to(device)
 
     @staticmethod
-    def get_layers_for_scaling(module: OldLlamaDecoderLayer, input_feat, module_kwargs):
+    def get_layers_for_scaling(module: OldLlamaDecoderLayer, input_feat,
+                               module_kwargs):
         layers = []
 
         # attention input
@@ -85,6 +86,7 @@ class LlamaAWQForCausalLM(BaseAWQForCausalLM):
 
 
 class LlamaFuser:
+
     def __init__(self, model: OldLlamaForCausalLM):
         self.model = model
 
@@ -98,7 +100,8 @@ class LlamaFuser:
         blocks = []
 
         module: OldLlamaDecoderLayer
-        for module in tqdm.tqdm(self.model.model.layers, desc="Fusing layers..."):
+        for module in tqdm.tqdm(self.model.model.layers,
+                                desc="Fusing layers..."):
             device = next(iter(module.state_dict().values())).device
             qkv = fuse_qkv(
                 module,
