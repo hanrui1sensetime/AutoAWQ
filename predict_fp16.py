@@ -6,35 +6,30 @@ import os.path
 from datasets import load_dataset
 import json
 from tqdm import tqdm
-# model_path = '/root/workspace/externel_data/pulse_v13_1_20b_gpt4_hf/base'
+model_path = '/root/workspace/externel_data/pulse_v12_70b_gpt4_bf16_hf/base'
 # quant_path = "/root/workspace/external_data/13bv9.1_autoawq_w4_gemv_calib_512x512_custom_flash_attn_32_new_seed_fix/"
 # quant_path = "/root/workspace/external_data/13bv9.1_autoawq_w4_gemv_calib_64x16384_custom_flash_attn_32"
 # quant_path = "/root/workspace/external_data/13bv9.1_autoawq_w4_gemv_calib_512x512_custom_flash_attn_32_new_seed"
 # quant_path = "/root/workspace/external_data//"
-# quant_path = '/root/workspace/externel_data/pulse_v13_1_20b_gpt4_hf/quant_gemm'
-model_path = '/root/workspace/externel_data/pulse_v14_20b_gpt4_hf/base'
-quant_path = '/root/workspace/externel_data/pulse_v14_20b_gpt4_hf/quant_gemm'
-data_path = '/root/workspace/externel_data/MedBench'
+# quant_path = '/root/workspace/externel_data/pulse_v12_70b_gpt4_bf16_hf/quant'
+data_path = '/root/workspace/externel_data/MedBench/DrugCA'
 # data_path = 'dayi_data_qa_debug'
 # predict_output_path = "/workspace/AutoAWQ/predict_13bv9.1_autoawq_w4_gemv_calib_512x512_custom_flash_attn_32_new_seed_fix_test"
-predict_output_path = "/workspace/AutoAWQ/predict_pulse_v14_20b_gpt4_hf_autoawq_w4_gemm_calib_512x512_custom_migrate_flash_attn_result"
+predict_output_path = "/workspace/AutoAWQ/predict_pulse_v12_70b_gpt4_bf16_hf_result"
 # predict_13bv9.1_quant_gemv_calib_16384_50_custom/'
 
 # Load model
 
-#model_debug = AutoAWQForCausalLM.from_pretrained(model_path,
-                                                 # use_flash_attention_2=True,
+model_debug = AutoAWQForCausalLM.from_pretrained(model_path,
+                                                 use_flash_attention_2=True,
                                                  # device_map='balanced'
-                                                 # )
-#model = model_debug.to('cuda:0')
+                                                 )
+model = model_debug.to('cuda:0')
 #assert 1 == 2
 
 # model = AutoModelForCausalLM.from_pretrained('/root/workspace/external_data/tigerbot-13b-base_v9_gpt4_hf').to('cuda:0')
-model = AutoAWQForCausalLM.from_quantized(quant_path,
-                                          fuse_layers=True,
-                                          )
 
-tokenizer = AutoTokenizer.from_pretrained(quant_path, trust_remote_code=True)
+tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
 # streamer = TextStreamer(tokenizer, skip_special_tokens=True)
 
 # Convert prompt to tokens

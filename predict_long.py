@@ -14,7 +14,7 @@ from tqdm import tqdm
 # quant_path = '/root/workspace/externel_data/pulse_v13_1_20b_gpt4_hf/quant_gemm'
 model_path = '/root/workspace/externel_data/pulse_v14_20b_gpt4_hf/base'
 quant_path = '/root/workspace/externel_data/pulse_v14_20b_gpt4_hf/quant_gemm'
-data_path = '/root/workspace/externel_data/MedBench'
+data_path = 'long'
 # data_path = 'dayi_data_qa_debug'
 # predict_output_path = "/workspace/AutoAWQ/predict_13bv9.1_autoawq_w4_gemv_calib_512x512_custom_flash_attn_32_new_seed_fix_test"
 predict_output_path = "/workspace/AutoAWQ/predict_pulse_v14_20b_gpt4_hf_autoawq_w4_gemm_calib_512x512_custom_migrate_flash_attn_result"
@@ -68,7 +68,7 @@ for test_file_path in sorted(glob.glob(os.path.join(data_path, "**/*.jsonl"), re
     predict_output = []
     for data in tqdm(test_dataset):
         retry = 0
-        question = data['question']
+        question = data['full_input']
         input_ids = tokenizer(f"<|iim_start|>{prompt_template}<|im_end|>").input_ids
         input_ids += tokenizer(f"<|aim_start|><|code_start|>get_user_input()<|im_end|><|fim_start|>{question}<|im_end|>", add_special_tokens=False).input_ids
         input_ids += answer_start_ids
@@ -76,7 +76,7 @@ for test_file_path in sorted(glob.glob(os.path.join(data_path, "**/*.jsonl"), re
         # already fill <s> automatically.
         print(f'debugging start_pos: {start_pos}')
         tokens = torch.tensor([input_ids]).cuda()
-        generation_config = GenerationConfig(max_length=16384,
+        generation_config = GenerationConfig(max_length=89088,
                                              max_new_tokens=2048,
                                              num_beams=1,
                                              do_sample=False,

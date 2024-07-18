@@ -3,31 +3,21 @@ import logging
 from typing import List, Union
 from datasets import load_dataset
 
-
 def get_calib_dataset(data: Union[str, List[str]] = "pileval",
-                      tokenizer=None,
-                      n_samples=512,
-                      block_size=512,
-                      split="train",
-                      text_column="text",
-                      custom_calib_file=None):
+                      tokenizer=None, n_samples=512, block_size=512,
+                      split="train", text_column="text"):
     if isinstance(data, str):
         if data == "pileval":
-            dataset = load_dataset("mit-han-lab/pile-val-backup",
-                                   split="validation")
+            dataset = load_dataset("mit-han-lab/pile-val-backup", split="validation")
         elif data == "custom":
-            dataset = load_dataset("json",
-                                   data_files=custom_calib_file,
-                                   split="train")
+            dataset = load_dataset("json", data_files="/root/workspace/externel_data/pulse_v14_20b_gpt4_hf/pulse_v14_20b_gpt4.jsonl", split="train")
             if text_column != "input_ids":
-                print(
-                    f'warning: text_column for custom medical dataset maybe wrong, we fix it as input_ids automatically'
-                )
+                print(f'warning: text_column for custom medical dataset maybe wrong, we fix it as input_ids automatically')
             text_column = "input_ids"
         else:
             dataset = load_dataset(data, split=split)
 
-        dataset = dataset.shuffle(seed=0)  # same as LMDeploy
+        dataset = dataset.shuffle(seed=0)  # origin seed = 42
 
     elif isinstance(data, list):
         dataset = [{text_column: text} for text in data]
@@ -61,7 +51,6 @@ def get_calib_dataset(data: Union[str, List[str]] = "pileval",
     cat_samples = torch.cat(samples, dim=1)
     n_split = cat_samples.shape[1] // block_size
     logging.debug(f" * Split into {n_split} blocks")
-    return [
-        cat_samples[:, i * block_size:(i + 1) * block_size]
-        for i in range(n_split)
-    ]
+    assert n_split > 100
+    # return [cat_samples[:, i*block_size:(i+1)*block_size] for i in range(n_split)]
+    return [cat_samples[:, i*block_size:(i+1)*block_size] for i in range(n_split)]
